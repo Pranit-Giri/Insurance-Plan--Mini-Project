@@ -21,7 +21,7 @@ public class Reportcontroller {
 	private ReportService service;
 
 	@GetMapping("/pdf")
-	public void pdfExport(HttpServletResponse response) throws Exception {
+	public void pdfExport(HttpServletResponse response,Model model) throws Exception {
 		response.setContentType("appliction/pdf");
 		response.addHeader("Content-Disposition", "attachment;filename=plans.pdf");
 		service.exportPdf(response);

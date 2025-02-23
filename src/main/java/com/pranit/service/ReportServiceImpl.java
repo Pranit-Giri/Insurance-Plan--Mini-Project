@@ -1,28 +1,21 @@
 package com.pranit.service;
 
+import java.io.File;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 
-import com.lowagie.text.Document;
-import com.lowagie.text.Element;
-import com.lowagie.text.Paragraph;
-import com.lowagie.text.pdf.PdfPTable;
-import com.lowagie.text.pdf.PdfWriter;
 import com.pranit.entity.CitizenPlan;
 import com.pranit.repo.CitizenPlanRepository;
 import com.pranit.request.SearchRequest;
+import com.pranit.util.EmailUtils;
+import com.pranit.util.ExcleGenerator;
+import com.pranit.util.PdfGenerator;
 
-import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Service
@@ -30,6 +23,15 @@ public class ReportServiceImpl implements ReportService {
 
 	@Autowired
 	private CitizenPlanRepository planRepo;
+
+	@Autowired
+	private ExcleGenerator excleGenerator;
+
+	@Autowired
+	private PdfGenerator pdfGenrator;
+
+	@Autowired
+	private EmailUtils emailUtils;
 
 	@Override
 	public List<String> getPlanNames() {
@@ -83,44 +85,17 @@ public class ReportServiceImpl implements ReportService {
 	@Override
 	public boolean exportPdf(HttpServletResponse response) throws Exception {
 
-		Document document = new Document();
-		PdfWriter.getInstance(document, response.getOutputStream());
-
-		document.open();
-
-		Paragraph p = new Paragraph("Citizen plans Info");
-		document.add(p);
-		p.setAlignment(Element.ALIGN_CENTER);
-
-		PdfPTable table = new PdfPTable(6);
-		table.setSpacingBefore(5);
-		
-		table.setWidthPercentage(100);
-		table.getDefaultCell().setHorizontalAlignment(Element.ALIGN_CENTER);
-		table.getDefaultCell().setVerticalAlignment(Element.ALIGN_MIDDLE);
-
-		table.addCell("Id");
-		table.addCell("Citizen Name");
-		table.addCell("Plan Name");
-		table.addCell("Plan Status");
-		table.addCell("Start Date");
-		table.addCell("End Date");
+		File f = new File("Plans.pdf");
 
 		List<CitizenPlan> plans = planRepo.findAll();
+		pdfGenrator.generate(response, plans, f);
+		
+		String subject = "Test mail subject";
+		String body = "<h1>Test Mail Body</h1>";
+		String to = "pranitgiri161298@gmail.com";
+		emailUtils.sendMail(subject, body, to, f);
 
-		for (CitizenPlan plan : plans) {
-			
-			
-			table.addCell(String.valueOf(plan.getCitizenId()));
-			table.addCell(plan.getCitizenName());
-			table.addCell(plan.getPlanName());
-			table.addCell(plan.getPlanStatus());
-			table.addCell(plan.getPlanStartDate() + "");
-			table.addCell(plan.getPlanEndDate() + "");
-		}
-
-		document.add(table);
-		document.close();
+		f.delete();
 
 		return true;
 	}
@@ -128,50 +103,17 @@ public class ReportServiceImpl implements ReportService {
 	@Override
 	public boolean exportExcle(HttpServletResponse response) throws Exception {
 
-		Workbook workbook = new HSSFWorkbook();
-		Sheet sheet = workbook.createSheet("plans-data");
-		Row headerRow = sheet.createRow(0);
+		File f = new File("Plans.xls");
 
-		headerRow.createCell(0).setCellValue("ID");
-		headerRow.createCell(1).setCellValue("CitizenName");
-		headerRow.createCell(2).setCellValue("Plan Name");
-		headerRow.createCell(3).setCellValue("Plan Status");
-		headerRow.createCell(4).setCellValue("Start Date");
-		headerRow.createCell(5).setCellValue("End Date");
-		headerRow.createCell(6).setCellValue("Benifit Amount");
+		List<CitizenPlan> plans = planRepo.findAll();
+		excleGenerator.generate(response, plans, f);
 
-		List<CitizenPlan> records = planRepo.findAll();
+		String subject = "Test mail subject";
+		String body = "<h1>Test Mail Body</h1>";
+		String to = "pranitgiri161298@gmail.com";
+		emailUtils.sendMail(subject, body, to, f);
 
-		int dataRowIndex = 1;
-		for (CitizenPlan plan : records) {
-			Row dataRow = sheet.createRow(dataRowIndex);
-			dataRow.createCell(0).setCellValue(plan.getCitizenId());
-			dataRow.createCell(1).setCellValue(plan.getCitizenName());
-			dataRow.createCell(2).setCellValue(plan.getPlanName());
-			dataRow.createCell(3).setCellValue(plan.getPlanStatus());
-			if (null != plan.getPlanStartDate()) {
-				dataRow.createCell(4).setCellValue(plan.getPlanStartDate() + "");
-			} else {
-				dataRow.createCell(4).setCellValue("N/A");
-			}
-
-			if (null != plan.getPlanEndDate()) {
-				dataRow.createCell(5).setCellValue(plan.getPlanEndDate() + "");
-			} else {
-				dataRow.createCell(5).setCellValue("N/A");
-			}
-
-			if (null != plan.getBenifitAmount()) {
-				dataRow.createCell(6).setCellValue(plan.getBenifitAmount());
-			} else {
-				dataRow.createCell(6).setCellValue("N/A");
-			}
-
-			dataRowIndex++;
-		}
-		ServletOutputStream outputStream = response.getOutputStream();
-		workbook.write(outputStream);
-		workbook.close();
+		f.delete();
 
 		return true;
 	}
